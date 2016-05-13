@@ -15,6 +15,7 @@ executable haslex-guard
                ,       foldl >=1.1
                ,       text >=1.2
                ,       semigroups >=0.18
+               ,       Plural >= 0.0.2
   hs-source-dirs:      src
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings

@@ -9,6 +9,7 @@ import qualified Data.List as L
 import Data.List.NonEmpty (NonEmpty)
 import Data.Semigroup
 import Turtle hiding ((<>))
+import Language.English.Plural
 
 data Options = Options
   { src_path :: Text
@@ -137,7 +138,7 @@ checkIndentStep (Numbered num nb@(Neighbours (Just a) b _)) =
     indentDiff = countIndent b - countIndent a
     goodIndentDiff = indentDiff <= 0 || indentDiff == 2
     message = "Thou shalt not indent with " <> T.pack (show indentDiff)
-      <> " spaces! ಠ_ಠ"
+      <> " " <> T.pack (tryPlural indentDiff "space") <> "! ಠ_ಠ"
   in do
     badRange <- if
       | goodIndentDiff -> []

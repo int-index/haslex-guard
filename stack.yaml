@@ -2,3 +2,4 @@ resolver: lts-5.16
 packages:
 extra-deps:
 - optparse-generic-1.1.0
+- Plural-0.0.2
