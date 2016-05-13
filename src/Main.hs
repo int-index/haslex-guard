@@ -6,6 +6,7 @@ import Data.Maybe
 import qualified Control.Foldl as F
 import qualified Data.Text as T
 import qualified Data.List as L
+import qualified Data.Char as C
 import Data.List.NonEmpty (NonEmpty)
 import Data.Semigroup
 import Turtle hiding ((<>))
@@ -125,8 +126,8 @@ printStyleError se =
 
 checkStyle :: [Text] -> [StyleError]
 checkStyle ts = do
-  check <- [checkIndentStep, checkColumnMargin]
   neighbours <- zipWith Numbered [0..] (mkNeighbours ts)
+  check <- [checkIndentStep, checkColumnMargin, checkTrailingSpace]
   check neighbours
 
 checkIndentStep :: Numbered Int (Neighbours Text) -> [StyleError]
@@ -156,6 +157,21 @@ checkColumnMargin (Numbered num nb) =
     badRange <- if
       | goodColumnMargin -> []
       | otherwise        -> [pure (Range 81 columnMargin)]
+    [StyleError num nb badRange message]
+
+checkTrailingSpace :: Numbered Int (Neighbours Text) -> [StyleError]
+checkTrailingSpace (Numbered num nb) =
+  let
+    countTrailing = T.length . T.takeWhile C.isSpace . T.reverse
+    trailingLen = countTrailing (nbCurr nb)
+    lineLen = T.length (nbCurr nb)
+    trailingStart = lineLen - trailingLen
+    goodTrailingLen = trailingLen == 0
+    message = "Thou shalt not end a line with a space!"
+  in do
+    badRange <- if
+      | goodTrailingLen -> []
+      | otherwise       -> [pure (Range trailingStart lineLen)]
     [StyleError num nb badRange message]
 
 main :: IO ()
