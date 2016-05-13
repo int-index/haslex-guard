@@ -2,8 +2,10 @@ module Main where
 
 import Data.Foldable (toList, traverse_)
 import Options.Generic
+import Data.Maybe
 import qualified Control.Foldl as F
 import qualified Data.Text as T
+import qualified Data.List as L
 import Data.List.NonEmpty (NonEmpty)
 import Data.Semigroup
 import Turtle hiding ((<>))
@@ -91,40 +93,74 @@ printStyleError se =
   T.unlines $
     mconcat
       [ toList (nbPrev flatLines)
-      , [nbCurr flatLines, extraLine]
+      , [nbCurr flatLines]
+      , extraLines
       , toList (nbNext flatLines) ]
   where
     (lineNumberOffset, numberedLines) =
       justifyNumbers
         (renderNumber <$> numberNeighbours (seLineNum se) (seLines se))
     flatLines = getNumbered <$> numberedLines
-    extraLine = T.replicate (lineNumberOffset + 1) " " <>
-      highlightRanges (seBadRanges se) <> " " <> seMessage se
-
-checkIndentStyle :: [Text] -> [StyleError]
-checkIndentStyle = checkIndentStyle1 <=< zipWith Numbered [0..] . mkNeighbours
-  where
-    checkIndentStyle1 :: Numbered Int (Neighbours Text) -> [StyleError]
-    checkIndentStyle1 (Numbered num nb@(Neighbours (Just a) b _)) =
+    extraLines =
       let
-        countIndent = T.length . T.takeWhile (==' ')
-        aIndent = countIndent a
-        bIndent = countIndent b
-        indentDiff = countIndent b - countIndent a
-        goodIndentDiff = indentDiff <= 0 || indentDiff == 2
-        message = "Thou shall not indent with " <> T.pack (show indentDiff)
-          <> " spaces! ಠ_ಠ"
-      in do
-        badRange <- if
-          | goodIndentDiff -> []
-          | otherwise      -> [pure (Range aIndent bIndent)]
-        [StyleError num nb badRange message]
-    checkIndentStyle1 _ = []
+        leftOffset   = T.replicate (lineNumberOffset + 1) " "
+        hl           = highlightRanges (seBadRanges se)
+        hlGroups     = T.group hl
+        message      = seMessage se
+        noInline     = [hl, message]
+        inlineLeft   = do
+          (hlG, hlGs) <- L.uncons hlGroups
+          guard $ " " `T.isPrefixOf` hlG
+            && T.length hlG > T.length message
+          Just
+            [T.justifyRight (T.length hlG - 1) ' ' message
+              <> " " <> mconcat hlGs]
+        inlineRight  = do
+          let extraLine = hl <> " " <> message
+          guard (T.length extraLine <= 80)
+          Just [extraLine]
+      in map (leftOffset <>) $
+        fromMaybe noInline (inlineLeft <|> inlineRight)
+
+checkStyle :: [Text] -> [StyleError]
+checkStyle ts = do
+  check <- [checkIndentStep, checkColumnMargin]
+  neighbours <- zipWith Numbered [0..] (mkNeighbours ts)
+  check neighbours
+
+checkIndentStep :: Numbered Int (Neighbours Text) -> [StyleError]
+checkIndentStep (Numbered num nb@(Neighbours (Just a) b _)) =
+  let
+    countIndent = T.length . T.takeWhile (==' ')
+    aIndent = countIndent a
+    bIndent = countIndent b
+    indentDiff = countIndent b - countIndent a
+    goodIndentDiff = indentDiff <= 0 || indentDiff == 2
+    message = "Thou shalt not indent with " <> T.pack (show indentDiff)
+      <> " spaces! ಠ_ಠ"
+  in do
+    badRange <- if
+      | goodIndentDiff -> []
+      | otherwise      -> [pure (Range aIndent bIndent)]
+    [StyleError num nb badRange message]
+checkIndentStep _ = []
+
+checkColumnMargin :: Numbered Int (Neighbours Text) -> [StyleError]
+checkColumnMargin (Numbered num nb) =
+  let
+    columnMargin = T.length (nbCurr nb)
+    goodColumnMargin = columnMargin <= 80
+    message = "Thou shalt not exceed the 80 characters limit!"
+  in do
+    badRange <- if
+      | goodColumnMargin -> []
+      | otherwise        -> [pure (Range 81 columnMargin)]
+    [StyleError num nb badRange message]
 
 main :: IO ()
 main = do
   opts <- getRecord "Haslex Guard"
   let srcPath = fromText (src_path opts)
   src <- fold (input srcPath) F.list
-  let styleErrors = checkIndentStyle src
+  let styleErrors = checkStyle src
   traverse_ (echo . printStyleError) styleErrors
