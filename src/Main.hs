@@ -3,8 +3,8 @@ module Main where
 import Data.Foldable (toList, traverse_)
 import Options.Generic
 import Data.Maybe
-import qualified Control.Foldl as F
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.List as L
 import qualified Data.Char as C
 import Data.List.NonEmpty (NonEmpty)
@@ -177,7 +177,6 @@ checkTrailingSpace (Numbered num nb) =
 main :: IO ()
 main = do
   opts <- getRecord "Haslex Guard"
-  let srcPath = fromText (src_path opts)
-  src <- fold (input srcPath) F.list
-  let styleErrors = checkStyle src
+  src <- T.readFile (T.unpack (src_path opts))
+  let styleErrors = checkStyle (T.lines src)
   traverse_ (echo . printStyleError) styleErrors
