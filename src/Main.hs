@@ -176,7 +176,9 @@ main :: IO ()
 main = sh $ do
   opts <- options "Haslex Guard" $
     Options <$> many (argPath "SOURCE" Default)
-  srcPath <- select (opSrcPaths opts)
+  srcPath <- select $ case opSrcPaths opts of
+    []       -> ["."]
+    srcPaths -> srcPaths
   srcFilePath <- testfile srcPath >>= \case
     True  -> pure srcPath
     False -> testdir srcPath >>= \case
