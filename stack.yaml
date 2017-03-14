@@ -1,5 +1,4 @@
-resolver: lts-5.16
+resolver: lts-6.30
 packages:
 extra-deps:
-- optparse-generic-1.1.0
 - Plural-0.0.2
