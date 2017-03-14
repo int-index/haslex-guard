@@ -1,22 +1,19 @@
 module Main where
 
-import Data.Foldable (toList, traverse_)
-import Options.Generic
+import Data.Char as C
+import Data.Foldable as F
+import Data.List as L
+import Data.List.NonEmpty as NE
 import Data.Maybe
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Data.List as L
-import qualified Data.Char as C
-import Data.List.NonEmpty (NonEmpty)
+import Data.Optional
 import Data.Semigroup
-import Turtle hiding ((<>))
+import Data.Text as T
 import Language.English.Plural
+import Turtle hiding ((<>))
 
 data Options = Options
-  { src_path :: Text
-  } deriving (Generic)
-
-instance ParseRecord Options
+  { opSrcPaths :: [Turtle.FilePath]
+  } deriving ()
 
 data Neighbours a = Neighbours
   { nbPrev :: Maybe a
@@ -50,7 +47,7 @@ justifyNumbers
   :: Traversable t => t (Numbered Text a) -> (Int, t (Numbered Text a))
 justifyNumbers numbers = (maxLen, justifyNumber maxLen <$> numbers)
   where
-    maxLen = maximum (T.length . getNumber <$> numbers)
+    maxLen = L.maximum (T.length . getNumber <$> numbers)
 
 numberNeighbours
   :: Enum num => num -> Neighbours a -> Neighbours (Numbered num a)
@@ -82,22 +79,23 @@ withinRange k (Range n m) = k >= n && k < m
 withinRange k (RangeOffset n m) = withinRange k (Range n (n + m))
 
 withinRanges :: Foldable f => Int -> f (Range Int) -> Bool
-withinRanges k = any (withinRange k)
+withinRanges k = L.any (withinRange k)
 
 highlightRanges :: NonEmpty (Range Int) -> Text
-highlightRanges rs = T.pack (take maxRange symbols)
+highlightRanges rs = T.pack (L.take maxRange symbols)
   where
-    symbols  = map (\k -> if withinRanges k rs then '^' else ' ') [0..]
-    maxRange = maximum (fmap rangeMax rs)
+    symbols  = L.map (\k -> if withinRanges k rs then '^' else ' ') [0..]
+    maxRange = L.maximum (fmap rangeMax rs)
 
-printStyleError :: StyleError -> Text
-printStyleError se =
+printStyleError :: Turtle.FilePath -> StyleError -> Text
+printStyleError srcFilePath se =
   T.unlines $
     mconcat
-      [ toList (nbPrev flatLines)
+      [ [format fp srcFilePath]
+      , maybeToList (nbPrev flatLines)
       , [nbCurr flatLines]
       , extraLines
-      , toList (nbNext flatLines) ]
+      , maybeToList (nbNext flatLines) ]
   where
     (lineNumberOffset, numberedLines) =
       justifyNumbers
@@ -121,12 +119,12 @@ printStyleError se =
           let extraLine = hl <> " " <> message
           guard (T.length extraLine <= 80)
           Just [extraLine]
-      in map (leftOffset <>) $
+      in L.map (leftOffset <>) $
         fromMaybe noInline (inlineLeft <|> inlineRight)
 
 checkStyle :: [Text] -> [StyleError]
 checkStyle ts = do
-  neighbours <- zipWith Numbered [0..] (mkNeighbours ts)
+  neighbours <- L.zipWith Numbered [0..] (mkNeighbours ts)
   check <- [checkIndentStep, checkColumnMargin, checkTrailingSpace]
   check neighbours
 
@@ -175,8 +173,16 @@ checkTrailingSpace (Numbered num nb) =
     [StyleError num nb badRange message]
 
 main :: IO ()
-main = do
-  opts <- getRecord "Haslex Guard"
-  src <- T.readFile (T.unpack (src_path opts))
+main = sh $ do
+  opts <- options "Haslex Guard" $
+    Options <$> many (argPath "SOURCE" Default)
+  srcPath <- select (opSrcPaths opts)
+  srcFilePath <- testfile srcPath >>= \case
+    True  -> pure srcPath
+    False -> testdir srcPath >>= \case
+      True  -> Turtle.find (suffix ".hs") srcPath
+      False -> die $ format ("Path not found: " % fp) srcPath
+  src <- liftIO $ readTextFile srcFilePath
   let styleErrors = checkStyle (T.lines src)
-  traverse_ (echo . printStyleError) styleErrors
+  traverse_ (echo . printStyleError srcFilePath) styleErrors
+  unless (L.null styleErrors) $ exit (ExitFailure 2)
