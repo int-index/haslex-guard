@@ -10,5 +10,5 @@ whitespace and formatting rules. For now, the rules are:
 # Usage
 
 ```
-stack exec -- haslex-guard --src_path FILENAME.hs
+stack exec -- haslex-guard [FILENAME.hs]...
 ```
