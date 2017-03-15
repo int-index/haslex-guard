@@ -2,12 +2,14 @@ module Main where
 
 import Data.Char as C
 import Data.Foldable as F
+import Data.IORef
 import Data.List as L
 import Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Optional
 import Data.Semigroup
 import Data.Text as T
+import Filesystem.Path.CurrentOS as FS
 import Language.English.Plural
 import Turtle hiding ((<>))
 
@@ -172,19 +174,35 @@ checkTrailingSpace (Numbered num nb) =
       | otherwise       -> [pure (Range trailingStart lineLen)]
     [StyleError num nb badRange message]
 
+findHsFiles :: Turtle.FilePath -> Shell Turtle.FilePath
+findHsFiles dir = do
+  path <- lsif (pure . isNotIgnored) dir
+  True <- return (FS.hasExtension path "hs")
+  return path
+  where
+    isNotIgnored :: Turtle.FilePath -> Bool
+    isNotIgnored p = dirname p /= ".stack-work" && dirname p /= "dist"
+
 main :: IO ()
-main = sh $ do
-  opts <- options "Haslex Guard" $
-    Options <$> many (argPath "SOURCE" Default)
-  srcPath <- select $ case opSrcPaths opts of
-    []       -> ["."]
-    srcPaths -> srcPaths
-  srcFilePath <- testfile srcPath >>= \case
-    True  -> pure srcPath
-    False -> testdir srcPath >>= \case
-      True  -> Turtle.find (suffix ".hs") srcPath
-      False -> die $ format ("Path not found: " % fp) srcPath
-  src <- liftIO $ readTextFile srcFilePath
-  let styleErrors = checkStyle (T.lines src)
-  traverse_ (echo . printStyleError srcFilePath) styleErrors
-  unless (L.null styleErrors) $ exit (ExitFailure 2)
+main = do
+  detectedErrorsRef <- newIORef (0 :: Int)
+  sh $ do
+    opts <- options "Haslex Guard" $
+      Options <$> many (argPath "SOURCE" Default)
+    srcPath <- select $ case opSrcPaths opts of
+      []       -> ["."]
+      srcPaths -> srcPaths
+    srcFilePath <- testfile srcPath >>= \case
+      True  -> pure srcPath
+      False -> testdir srcPath >>= \case
+        True  -> findHsFiles srcPath
+        False -> die $ format ("Path not found: " % fp) srcPath
+    src <- liftIO $ readTextFile srcFilePath
+    let styleErrors = checkStyle (T.lines src)
+    traverse_ (echo . printStyleError srcFilePath) styleErrors
+    unless (L.null styleErrors) $ liftIO $ modifyIORef detectedErrorsRef (+1)
+  readIORef detectedErrorsRef >>= \case
+    0 -> exit ExitSuccess
+    n -> do
+      printf ("Detected "%d%" errors.\n") n
+      exit (ExitFailure 2)
