@@ -204,5 +204,6 @@ main = do
   readIORef detectedErrorsRef >>= \case
     0 -> exit ExitSuccess
     n -> do
-      printf ("Detected "%d%" errors.\n") n
+      echo $ "Detected " <> T.pack (show n) <> " " <>
+        fromString (tryPlural n "error") <> ".\n"
       exit (ExitFailure 2)
