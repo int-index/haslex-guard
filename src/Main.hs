@@ -1,3 +1,12 @@
+#!/usr/bin/env stack
+{- stack script
+  --resolver lts-6.30
+  --package "semigroups optional-args text system-filepath turtle" -}
+
+{-# LANGUAGE
+  OverloadedStrings, MultiWayIf, LambdaCase,
+  DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+
 module Main where
 
 import Data.Char as C
@@ -10,8 +19,12 @@ import Data.Optional
 import Data.Semigroup
 import Data.Text as T
 import Filesystem.Path.CurrentOS as FS
-import Language.English.Plural
 import Turtle hiding ((<>))
+
+plural :: Int -> String -> String -> String
+plural n a b
+  | n == 1    = a
+  | otherwise = b
 
 data Options = Options
   { opSrcPaths :: [Turtle.FilePath]
@@ -139,7 +152,7 @@ checkIndentStep (Numbered num nb@(Neighbours (Just a) b _)) =
     indentDiff = countIndent b - countIndent a
     goodIndentDiff = indentDiff <= 0 || indentDiff == 2
     message = "Thou shalt not indent with " <> T.pack (show indentDiff)
-      <> " " <> T.pack (tryPlural indentDiff "space") <> "! ಠ_ಠ"
+      <> " " <> T.pack (plural indentDiff "space" "spaces") <> "! ಠ_ಠ"
   in do
     badRange <- if
       | goodIndentDiff -> []
@@ -205,5 +218,5 @@ main = do
     0 -> exit ExitSuccess
     n -> do
       echo $ "Detected " <> T.pack (show n) <> " " <>
-        fromString (tryPlural n "error") <> ".\n"
+        fromString (plural n "error" "errors") <> ".\n"
       exit (ExitFailure 2)

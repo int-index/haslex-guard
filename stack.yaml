@@ -1,4 +1,2 @@
 resolver: lts-6.30
-packages:
-extra-deps:
-- Plural-0.0.2
+packages: ["."]
