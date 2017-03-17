@@ -206,7 +206,7 @@ main = do
       []       -> ["."]
       srcPaths -> srcPaths
     srcFilePath <- testfile srcPath >>= \case
-      True  -> pure srcPath
+      True  -> srcPath <$ guard (FS.hasExtension srcPath "hs")
       False -> testdir srcPath >>= \case
         True  -> findHsFiles srcPath
         False -> die $ format ("Path not found: " % fp) srcPath
