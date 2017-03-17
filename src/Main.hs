@@ -202,9 +202,7 @@ main = do
   sh $ do
     opts <- options "Haslex Guard" $
       Options <$> many (argPath "SOURCE" Default)
-    srcPath <- select $ case opSrcPaths opts of
-      []       -> ["."]
-      srcPaths -> srcPaths
+    srcPath <- select (opSrcPaths opts)
     srcFilePath <- testfile srcPath >>= \case
       True  -> srcPath <$ guard (FS.hasExtension srcPath "hs")
       False -> testdir srcPath >>= \case
