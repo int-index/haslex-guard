@@ -211,7 +211,7 @@ main = do
     src <- liftIO $ readTextFile srcFilePath
     let styleErrors = checkStyle (T.lines src)
     traverse_ (echo . printStyleError srcFilePath) styleErrors
-    unless (L.null styleErrors) $ liftIO $ modifyIORef detectedErrorsRef (+1)
+    liftIO $ modifyIORef detectedErrorsRef (+L.length styleErrors)
   readIORef detectedErrorsRef >>= \case
     0 -> exit ExitSuccess
     n -> do
