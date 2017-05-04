@@ -37,11 +37,11 @@ data Neighbours a = Neighbours
   } deriving (Functor, Foldable, Traversable, Show)
 
 mkNeighbours :: [a] -> [Neighbours a]
-mkNeighbours [] = []
-mkNeighbours [a] = [Neighbours Nothing a Nothing]
-mkNeighbours [a, b] = [Neighbours (Just a) b Nothing]
-mkNeighbours (a : b : c : xs) =
-  Neighbours (Just a) b (Just c) : mkNeighbours (b : c : xs)
+mkNeighbours xs = L.zipWith3 Neighbours prev xs next
+  where
+    prev = Nothing : curr
+    curr = Just <$> xs
+    next = curr ++ [Nothing]
 
 data Numbered num a = Numbered num a
   deriving (Functor)
