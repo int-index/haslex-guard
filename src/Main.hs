@@ -139,7 +139,7 @@ printStyleError srcFilePath se =
 
 checkStyle :: [Text] -> [StyleError]
 checkStyle ts = do
-  neighbours <- L.zipWith Numbered [0..] (mkNeighbours ts)
+  neighbours <- L.zipWith Numbered [1..] (mkNeighbours ts)
   check <- [checkIndentStep, checkColumnMargin, checkTrailingSpace]
   check neighbours
 
