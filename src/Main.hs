@@ -41,7 +41,7 @@ mkNeighbours xs = L.zipWith3 Neighbours prev xs next
   where
     prev = Nothing : curr
     curr = Just <$> xs
-    next = curr ++ [Nothing]
+    next = L.tail (curr ++ [Nothing])
 
 data Numbered num a = Numbered num a
   deriving (Functor)
